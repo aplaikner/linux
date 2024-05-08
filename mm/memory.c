@@ -5373,6 +5373,11 @@ static vm_fault_t __handle_mm_fault(struct vm_area_struct *vma,
 	p4d_t *p4d;
 	vm_fault_t ret;
 
+
+	if(vm_flags & VM_SMARTSTACK) {
+		printk(KERN_WARNING "Pagefault at:0x%lx\n", address);
+	}
+
 	pgd = pgd_offset(mm, address);
 	p4d = p4d_alloc(mm, pgd, address);
 	if (!p4d)
