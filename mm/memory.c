@@ -4337,6 +4337,15 @@ static struct folio *alloc_anon_folio(struct vm_fault *vmf)
 	if (!pte)
 		return ERR_PTR(-EAGAIN);
 
+	#if VM_STACK == VM_GROWSDOWN
+	if (vma->vm_flags & VM_SMARTSTACK && vmf->address >= vma->vm_end - (PAGE_SIZE << 2) && vmf->address < vma->vm_end) {
+		orders = 0b100;
+		printk(KERN_WARNING "VMA start:0x%lx\n", vma->vm_start);
+		printk(KERN_WARNING "VMA   end:0x%lx\n", vma->vm_end);
+		printk(KERN_WARNING "Allocated first page in stack as order 2 successfully\n");
+	}
+	#endif
+
 	/*
 	 * Find the highest order where the aligned range is completely
 	 * pte_none(). Note that all remaining orders will be completely
@@ -5375,9 +5384,20 @@ static vm_fault_t __handle_mm_fault(struct vm_area_struct *vma,
 retry_pud:
 	if (pud_none(*vmf.pud) &&
 	    thp_vma_allowable_order(vma, vm_flags, false, true, true, PUD_ORDER)) {
-		ret = create_huge_pud(&vmf);
-		if (!(ret & VM_FAULT_FALLBACK))
+		
+		#if VM_STACK == VM_GROWSDOWN
+		if ((vm_flags & VM_SMARTSTACK) && vmf.address >= vma->vm_end - PMD_SIZE) {
+			return handle_pte_fault(&vmf);
+		}		
+		#endif
+
+		ret = create_huge_pmd(&vmf);
+		if (!(ret & VM_FAULT_FALLBACK)) {
+			if(vm_flags & VM_SMARTSTACK) {
+				printk(KERN_WARNING "Allocated PMD-sized page for VM_SMARTSTACK range\n");
+			}
 			return ret;
+		}
 	} else {
 		pud_t orig_pud = *vmf.pud;
 
