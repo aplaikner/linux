@@ -4371,6 +4371,9 @@ static struct folio *alloc_anon_folio(struct vm_fault *vmf)
 				folio_put(folio);
 				goto next;
 			}
+			if (vma->vm_flags & VM_SMARTSTACK) {
+				printk(KERN_WARNING "Used mTHP of order: %d\n", order);
+			}
 			folio_throttle_swaprate(folio, gfp);
 			clear_huge_page(&folio->page, vmf->address, 1 << order);
 			return folio;
@@ -5389,20 +5392,9 @@ static vm_fault_t __handle_mm_fault(struct vm_area_struct *vma,
 retry_pud:
 	if (pud_none(*vmf.pud) &&
 	    thp_vma_allowable_order(vma, vm_flags, false, true, true, PUD_ORDER)) {
-		
-		#if VM_STACK == VM_GROWSDOWN
-		if ((vm_flags & VM_SMARTSTACK) && vmf.address >= vma->vm_end - PMD_SIZE) {
-			return handle_pte_fault(&vmf);
-		}		
-		#endif
-
-		ret = create_huge_pmd(&vmf);
-		if (!(ret & VM_FAULT_FALLBACK)) {
-			if(vm_flags & VM_SMARTSTACK) {
-				printk(KERN_WARNING "Allocated PMD-sized page for VM_SMARTSTACK range\n");
-			}
+		ret = create_huge_pud(&vmf);
+		if (!(ret & VM_FAULT_FALLBACK))
 			return ret;
-		}
 	} else {
 		pud_t orig_pud = *vmf.pud;
 
@@ -5434,9 +5426,19 @@ retry_pud:
 
 	if (pmd_none(*vmf.pmd) &&
 	    thp_vma_allowable_order(vma, vm_flags, false, true, true, PMD_ORDER)) {
+		#if VM_STACK == VM_GROWSDOWN
+		if ((vm_flags & VM_SMARTSTACK) && vmf.address >= vma->vm_end - PMD_SIZE) {
+			return handle_pte_fault(&vmf);
+		}		
+		#endif
+
 		ret = create_huge_pmd(&vmf);
-		if (!(ret & VM_FAULT_FALLBACK))
+		if (!(ret & VM_FAULT_FALLBACK)) {
+			if(vm_flags & VM_SMARTSTACK) {
+				printk(KERN_WARNING "Allocated PMD-sized page for VM_SMARTSTACK range\n");
+			}
 			return ret;
+		}
 	} else {
 		vmf.orig_pmd = pmdp_get_lockless(vmf.pmd);
 
