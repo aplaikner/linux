@@ -847,7 +847,15 @@ static unsigned long __thp_get_unmapped_area(struct file *filp,
 	    !off_sub)
 		return ret + size;
 
-	ret += off_sub;
+	unsigned long stack_correction = 0; 
+	
+	#if VM_STACK == VM_GROWSDOWN
+	if(MAP_STACK & flags) {
+			stack_correction = len % PMD_SIZE;
+	}
+	#endif
+
+	ret += off_sub - stack_correction; 
 	return ret;
 }
 
