@@ -4328,6 +4328,13 @@ static struct folio *alloc_anon_folio(struct vm_fault *vmf)
 	 */
 	orders = thp_vma_allowable_orders(vma, vma->vm_flags, false, true, true,
 					  BIT(PMD_ORDER) - 1);
+	
+	if(vmf->order_suggestion!= -1) {
+		if(vmf->order_suggestion <= 1) goto fallback;
+		orders = 1 << vmf->order_suggestion;
+
+	}
+
 	orders = thp_vma_suitable_orders(vma, vmf->address, orders);
 
 	if (!orders)
@@ -4336,6 +4343,7 @@ static struct folio *alloc_anon_folio(struct vm_fault *vmf)
 	pte = pte_offset_map(vmf->pmd, vmf->address & PMD_MASK);
 	if (!pte)
 		return ERR_PTR(-EAGAIN);
+	
 
 	/*
 	 * Find the highest order where the aligned range is completely
@@ -5348,7 +5356,7 @@ unlock:
  * and __folio_lock_or_retry().
  */
 static vm_fault_t __handle_mm_fault(struct vm_area_struct *vma,
-		unsigned long address, unsigned int flags)
+		unsigned long address, unsigned int flags, long order_suggestion)
 {
 	struct vm_fault vmf = {
 		.vma = vma,
@@ -5357,6 +5365,7 @@ static vm_fault_t __handle_mm_fault(struct vm_area_struct *vma,
 		.flags = flags,
 		.pgoff = linear_page_index(vma, address),
 		.gfp_mask = __get_fault_gfp_mask(vma),
+		.order_suggestion = order_suggestion,
 	};
 	struct mm_struct *mm = vma->vm_mm;
 	unsigned long vm_flags = vma->vm_flags;
@@ -5408,7 +5417,12 @@ retry_pud:
 		goto retry_pud;
 
 	if (pmd_none(*vmf.pmd) &&
-	    thp_vma_allowable_order(vma, vm_flags, false, true, true, PMD_ORDER)) {
+	    thp_vma_allowable_order(vma, vm_flags, false, true, true, PMD_ORDER)
+	     && (order_suggestion >= 0 ? order_suggestion >= PMD_ORDER : 1)) {
+		if(order_suggestion >= 0 ? order_suggestion >= PMD_ORDER : 1) {
+
+		printk(KERN_WARNING "USED PMD AS SUGGESTION:%ld\n", order_suggestion);
+		}
 		ret = create_huge_pmd(&vmf);
 		if (!(ret & VM_FAULT_FALLBACK))
 			return ret;
@@ -5565,6 +5579,60 @@ static vm_fault_t sanitize_fault_flags(struct vm_area_struct *vma,
 	return 0;
 }
 
+
+vm_fault_t handle_mm_fault_range(struct vm_area_struct *vma, unsigned long address,
+			   unsigned int flags, struct pt_regs *regs, unsigned long order_suggestion)
+{
+	/* If the fault handler drops the mmap_lock, vma may be freed */
+	struct mm_struct *mm = vma->vm_mm;
+	vm_fault_t ret;
+	
+	__set_current_state(TASK_RUNNING);
+
+	ret = sanitize_fault_flags(vma, &flags);
+	if (ret)
+		goto out;
+
+	if (!arch_vma_access_permitted(vma, flags & FAULT_FLAG_WRITE,
+				       flags & FAULT_FLAG_INSTRUCTION,
+				       flags & FAULT_FLAG_REMOTE)) {
+		ret = VM_FAULT_SIGSEGV;
+		goto out;
+	}
+
+	/*
+	 * Enable the memcg OOM handling for faults triggered in user
+	 * space.  Kernel faults are handled more gracefully.
+	 */
+	if (flags & FAULT_FLAG_USER)
+		mem_cgroup_enter_user_fault();
+
+	lru_gen_enter_fault(vma);
+
+	if (unlikely(is_vm_hugetlb_page(vma)))
+		ret = hugetlb_fault(vma->vm_mm, vma, address, flags);
+	else
+		ret = __handle_mm_fault(vma, address, flags, order_suggestion);
+
+	lru_gen_exit_fault();
+
+	if (flags & FAULT_FLAG_USER) {
+		mem_cgroup_exit_user_fault();
+		/*
+		 * The task may have entered a memcg OOM situation but
+		 * if the allocation error was handled gracefully (no
+		 * VM_FAULT_OOM), there is no need to kill anything.
+		 * Just clean up the OOM state peacefully.
+		 */
+		if (task_in_memcg_oom(current) && !(ret & VM_FAULT_OOM))
+			mem_cgroup_oom_synchronize(false);
+	}
+out:
+	mm_account_fault(mm, regs, address, flags, ret);
+
+	return ret;
+}
+
 /*
  * By the time we get here, we already hold the mm semaphore
  *
@@ -5603,7 +5671,7 @@ vm_fault_t handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
 	if (unlikely(is_vm_hugetlb_page(vma)))
 		ret = hugetlb_fault(vma->vm_mm, vma, address, flags);
 	else
-		ret = __handle_mm_fault(vma, address, flags);
+		ret = __handle_mm_fault(vma, address, flags, -1);
 
 	lru_gen_exit_fault();
 

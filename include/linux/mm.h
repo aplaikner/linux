@@ -525,6 +525,9 @@ struct vm_fault {
 		unsigned long address;		/* Faulting virtual address - masked */
 		unsigned long real_address;	/* Faulting virtual address - unmasked */
 	};
+
+	int order_suggestion;
+
 	enum fault_flag flags;		/* FAULT_FLAG_xxx flags
 					 * XXX: should really be 'const' */
 	pmd_t *pmd;			/* Pointer to pmd entry matching
@@ -2416,6 +2419,9 @@ struct vm_area_struct *lock_mm_and_find_vma(struct mm_struct *mm,
 extern vm_fault_t handle_mm_fault(struct vm_area_struct *vma,
 				  unsigned long address, unsigned int flags,
 				  struct pt_regs *regs);
+extern vm_fault_t handle_mm_fault_range(struct vm_area_struct *vma,
+				  unsigned long address, unsigned int flags,
+				  struct pt_regs *regs, unsigned long order_suggestion);
 extern int fixup_user_fault(struct mm_struct *mm,
 			    unsigned long address, unsigned int fault_flags,
 			    bool *unlocked);
@@ -2427,6 +2433,14 @@ void unmap_mapping_range(struct address_space *mapping,
 static inline vm_fault_t handle_mm_fault(struct vm_area_struct *vma,
 					 unsigned long address, unsigned int flags,
 					 struct pt_regs *regs)
+{
+	/* should never happen if there's no MMU */
+	BUG();
+	return VM_FAULT_SIGBUS;
+}
+static inline vm_fault_t handle_mm_fault_range(struct vm_area_struct *vma,
+					 unsigned long address, unsigned int flags,
+					 struct pt_regs *regs, unsigned long order_suggestion)
 {
 	/* should never happen if there's no MMU */
 	BUG();
