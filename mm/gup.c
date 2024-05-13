@@ -960,10 +960,10 @@ static int faultin_page(struct vm_area_struct *vma,
 		nr_pages = (ALIGN(IS_ALIGNED(address, PMD_SIZE)?address+1:address, PMD_SIZE) - address) / PAGE_SIZE;
 	}
 
-	unsigned long suggestion_order = __ilog2_u64(__roundup_pow_of_two(nr_pages));
-	printk(KERN_WARNING "Suggested order is %ld for remaining pages %ld\n", suggestion_order, nr_pages);
+	unsigned int suggestion_order = __ilog2_u64(__roundup_pow_of_two(nr_pages));
+	printk(KERN_WARNING "Suggested order is %d for remaining pages %ld\n", suggestion_order, nr_pages);
 
-	ret = handle_mm_fault_range(vma, address, fault_flags, NULL, suggestion_order);
+	ret = handle_mm_preferred_fault(vma, address, fault_flags, NULL, &suggestion_order);
 
 	if (ret & VM_FAULT_COMPLETED) {
 		/*
