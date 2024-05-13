@@ -526,7 +526,7 @@ struct vm_fault {
 		unsigned long real_address;	/* Faulting virtual address - unmasked */
 	};
 
-	int order_suggestion;
+	unsigned int* order_suggestion;
 
 	enum fault_flag flags;		/* FAULT_FLAG_xxx flags
 					 * XXX: should really be 'const' */

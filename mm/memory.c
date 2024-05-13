@@ -4329,10 +4329,9 @@ static struct folio *alloc_anon_folio(struct vm_fault *vmf)
 	orders = thp_vma_allowable_orders(vma, vma->vm_flags, false, true, true,
 					  BIT(PMD_ORDER) - 1);
 	
-	if(vmf->order_suggestion!= -1) {
-		if(vmf->order_suggestion <= 1) goto fallback;
-		orders = 1 << vmf->order_suggestion;
-
+	if(vmf->order_suggestion != NULL) {
+		if(*(vmf->order_suggestion) <= 1) goto fallback;
+		orders = 1 << *(vmf->order_suggestion);
 	}
 
 	orders = thp_vma_suitable_orders(vma, vmf->address, orders);
@@ -5356,7 +5355,7 @@ unlock:
  * and __folio_lock_or_retry().
  */
 static vm_fault_t __handle_mm_fault(struct vm_area_struct *vma,
-		unsigned long address, unsigned int flags, long order_suggestion)
+		unsigned long address, unsigned int flags, unsigned int* order_suggestion)
 {
 	struct vm_fault vmf = {
 		.vma = vma,
@@ -5367,6 +5366,7 @@ static vm_fault_t __handle_mm_fault(struct vm_area_struct *vma,
 		.gfp_mask = __get_fault_gfp_mask(vma),
 		.order_suggestion = order_suggestion,
 	};
+
 	struct mm_struct *mm = vma->vm_mm;
 	unsigned long vm_flags = vma->vm_flags;
 	pgd_t *pgd;
@@ -5408,6 +5408,15 @@ retry_pud:
 		}
 	}
 
+/*
+ *	     && (order_suggestion != NULL ? *order_suggestion == PMD_ORDER : 1)) {
+		if(order_suggestion != NULL ? *order_suggestion == PMD_ORDER : 1) {
+
+		printk(KERN_WARNING "USED PMD AS SUGGESTION:%d\n", *order_suggestion);
+		}
+*/
+
+
 	vmf.pmd = pmd_alloc(mm, vmf.pud, address);
 	if (!vmf.pmd)
 		return VM_FAULT_OOM;
@@ -5417,12 +5426,7 @@ retry_pud:
 		goto retry_pud;
 
 	if (pmd_none(*vmf.pmd) &&
-	    thp_vma_allowable_order(vma, vm_flags, false, true, true, PMD_ORDER)
-	     && (order_suggestion >= 0 ? order_suggestion >= PMD_ORDER : 1)) {
-		if(order_suggestion >= 0 ? order_suggestion >= PMD_ORDER : 1) {
-
-		printk(KERN_WARNING "USED PMD AS SUGGESTION:%ld\n", order_suggestion);
-		}
+	    thp_vma_allowable_order(vma, vm_flags, false, true, true, PMD_ORDER) && (order_suggestion == NULL || *order_suggestion >= PMD_ORDER)){
 		ret = create_huge_pmd(&vmf);
 		if (!(ret & VM_FAULT_FALLBACK))
 			return ret;
@@ -5580,7 +5584,7 @@ static vm_fault_t sanitize_fault_flags(struct vm_area_struct *vma,
 }
 
 
-static vm_fault_t __handle_mm_preferred_fault(struct vm_area_struct *vma, unsigned long address,
+vm_fault_t handle_mm_preferred_fault(struct vm_area_struct *vma, unsigned long address,
 			   unsigned int flags, struct pt_regs *regs, unsigned int* order)
 {
 	/* If the fault handler drops the mmap_lock, vma may be freed */
@@ -5612,7 +5616,7 @@ static vm_fault_t __handle_mm_preferred_fault(struct vm_area_struct *vma, unsign
 	if (unlikely(is_vm_hugetlb_page(vma)))
 		ret = hugetlb_fault(vma->vm_mm, vma, address, flags);
 	else
-		ret = __handle_mm_fault(vma, address, flags, order == NULL ? -1 : *order);
+		ret = __handle_mm_fault(vma, address, flags, order);
 
 	lru_gen_exit_fault();
 
@@ -5642,7 +5646,7 @@ out:
 vm_fault_t handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
 			   unsigned int flags, struct pt_regs *regs)
 {
-	return __handle_mm_preferred_fault(vma, address, flags, regs, NULL);
+	return handle_mm_preferred_fault(vma, address, flags, regs, NULL);
 }
 EXPORT_SYMBOL_GPL(handle_mm_fault);
 
