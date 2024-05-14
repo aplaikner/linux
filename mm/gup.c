@@ -955,15 +955,15 @@ static int faultin_page(struct vm_area_struct *vma,
 		VM_BUG_ON(fault_flags & FAULT_FLAG_WRITE);
 	}
 
-	unsigned int suggestion_order = __ilog2_u64(__roundup_pow_of_two(nr_pages));
+	unsigned int order_suggestion = __ilog2_u64(__roundup_pow_of_two(nr_pages));
 
-	if(suggestion_order > 9) suggestion_order = 9;
+	if(order_suggestion > 9) order_suggestion = 9;
 	
-	while(address - ALIGN_DOWN(address, PAGE_SIZE << suggestion_order) > PAGE_SIZE) suggestion_order--;
+	while(address - ALIGN_DOWN(address, PAGE_SIZE << order_suggestion) > PAGE_SIZE) order_suggestion--;
 
-	printk(KERN_WARNING "Suggested order is %d for remaining pages %ld at the address:%lx\n", suggestion_order, nr_pages, address);
+	printk(KERN_WARNING "Suggested order is %d for remaining pages %ld at the address:%lx\n", order_suggestion, nr_pages, address);
 
-	ret = handle_mm_preferred_fault(vma, address, fault_flags, NULL, &suggestion_order);
+	ret = handle_mm_preferred_fault(vma, address, fault_flags, NULL, &order_suggestion);
 
 	if (ret & VM_FAULT_COMPLETED) {
 		/*

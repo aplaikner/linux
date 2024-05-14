@@ -5585,7 +5585,7 @@ static vm_fault_t sanitize_fault_flags(struct vm_area_struct *vma,
 
 
 vm_fault_t handle_mm_preferred_fault(struct vm_area_struct *vma, unsigned long address,
-			   unsigned int flags, struct pt_regs *regs, unsigned int* order)
+			   unsigned int flags, struct pt_regs *regs, unsigned int* order_suggestion)
 {
 	/* If the fault handler drops the mmap_lock, vma may be freed */
 	struct mm_struct *mm = vma->vm_mm;
@@ -5616,7 +5616,7 @@ vm_fault_t handle_mm_preferred_fault(struct vm_area_struct *vma, unsigned long a
 	if (unlikely(is_vm_hugetlb_page(vma)))
 		ret = hugetlb_fault(vma->vm_mm, vma, address, flags);
 	else
-		ret = __handle_mm_fault(vma, address, flags, order);
+		ret = __handle_mm_fault(vma, address, flags, order_suggestion);
 
 	lru_gen_exit_fault();
 
