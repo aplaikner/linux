@@ -955,15 +955,8 @@ static int faultin_page(struct vm_area_struct *vma,
 		VM_BUG_ON(fault_flags & FAULT_FLAG_WRITE);
 	}
 
-
-	/*
-	if(address + nr_pages * PAGE_SIZE > ALIGN(IS_ALIGNED(address, PMD_SIZE)?address+1:address, PMD_SIZE)) {
-		nr_pages = (ALIGN(IS_ALIGNED(address, PMD_SIZE)?address+1:address, PMD_SIZE) - address) / PAGE_SIZE;
-	}
-	*/
-	
-
 	unsigned int suggestion_order = __ilog2_u64(__roundup_pow_of_two(nr_pages));
+
 	if(suggestion_order > 9) suggestion_order = 9;
 	
 	while(address - ALIGN_DOWN(address, PAGE_SIZE << suggestion_order) > PAGE_SIZE) suggestion_order--;
