@@ -4328,13 +4328,19 @@ static struct folio *alloc_anon_folio(struct vm_fault *vmf)
 	 */
 	orders = thp_vma_allowable_orders(vma, vma->vm_flags, false, true, true,
 					  BIT(PMD_ORDER) - 1);
+	orders = thp_vma_suitable_orders(vma, vmf->address, orders);
 	
 	if(vmf->order_suggestion != NULL) {
+		/* If suggested order is either base page or double that, fallback */
 		if(*(vmf->order_suggestion) <= 1) goto fallback;
-		orders = 1 << *(vmf->order_suggestion);
+		/* Check if suggested order is allowable & suitable, if yes, take 
+		 * it as only order.
+		 */
+		if(orders & (1 << *(vmf->order_suggestion))) {
+			orders = 1 << *(vmf->order_suggestion);
+		}
 	}
 
-	orders = thp_vma_suitable_orders(vma, vmf->address, orders);
 
 	if (!orders)
 		goto fallback;
@@ -5584,7 +5590,7 @@ static vm_fault_t sanitize_fault_flags(struct vm_area_struct *vma,
 }
 
 
-vm_fault_t handle_mm_preferred_fault(struct vm_area_struct *vma, unsigned long address,
+vm_fault_t handle_mm_fault_suggestion(struct vm_area_struct *vma, unsigned long address,
 			   unsigned int flags, struct pt_regs *regs, unsigned int* order_suggestion)
 {
 	/* If the fault handler drops the mmap_lock, vma may be freed */
@@ -5646,7 +5652,7 @@ out:
 vm_fault_t handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
 			   unsigned int flags, struct pt_regs *regs)
 {
-	return handle_mm_preferred_fault(vma, address, flags, regs, NULL);
+	return handle_mm_fault_suggestion(vma, address, flags, regs, NULL);
 }
 EXPORT_SYMBOL_GPL(handle_mm_fault);
 

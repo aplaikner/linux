@@ -959,11 +959,14 @@ static int faultin_page(struct vm_area_struct *vma,
 
 	if(order_suggestion > 9) order_suggestion = 9;
 	
+	/* Limit how much overallocation happens downwards to <= PAGE_SIZE, since its
+	 * memory that probably won't be in use. 
+	 */
 	while(address - ALIGN_DOWN(address, PAGE_SIZE << order_suggestion) > PAGE_SIZE) order_suggestion--;
 
 	printk(KERN_WARNING "Suggested order is %d for remaining pages %ld at the address:%lx\n", order_suggestion, nr_pages, address);
 
-	ret = handle_mm_preferred_fault(vma, address, fault_flags, NULL, &order_suggestion);
+	ret = handle_mm_fault_suggestion(vma, address, fault_flags, NULL, &order_suggestion);
 
 	if (ret & VM_FAULT_COMPLETED) {
 		/*

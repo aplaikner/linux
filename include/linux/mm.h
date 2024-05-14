@@ -2419,7 +2419,7 @@ struct vm_area_struct *lock_mm_and_find_vma(struct mm_struct *mm,
 extern vm_fault_t handle_mm_fault(struct vm_area_struct *vma,
 				  unsigned long address, unsigned int flags,
 				  struct pt_regs *regs);
-extern vm_fault_t handle_mm_preferred_fault(struct vm_area_struct *vma,
+extern vm_fault_t handle_mm_fault_suggestion(struct vm_area_struct *vma,
 				  unsigned long address, unsigned int flags,
 				  struct pt_regs *regs, unsigned int* order_suggestion);
 extern int fixup_user_fault(struct mm_struct *mm,
@@ -2438,7 +2438,7 @@ static inline vm_fault_t handle_mm_fault(struct vm_area_struct *vma,
 	BUG();
 	return VM_FAULT_SIGBUS;
 }
-static inline vm_fault_t handle_mm_preferred_fault(struct vm_area_struct *vma,
+static inline vm_fault_t handle_mm_fault_suggestion(struct vm_area_struct *vma,
 					 unsigned long address, unsigned int flags,
 					 struct pt_regs *regs, unsigned int* order_suggestion)
 {
