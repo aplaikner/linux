@@ -4338,9 +4338,6 @@ static struct folio *alloc_anon_folio(struct vm_fault *vmf)
 		 */
 		if(orders & (1 << *(vmf->order_suggestion))) {
 			orders = 1 << *(vmf->order_suggestion);
-			printk(KERN_WARNING "Order:%d\n", *(vmf->order_suggestion));
-		} else {
-			printk(KERN_WARNING "Order:%d not allowable or suitable\n", *(vmf->order_suggestion));
 		}
 	}
 
@@ -4378,7 +4375,6 @@ static struct folio *alloc_anon_folio(struct vm_fault *vmf)
 				folio_put(folio);
 				goto next;
 			}
-			printk(KERN_WARNING "Used mTHP of order: %d\n", order);
 			folio_throttle_swaprate(folio, gfp);
 			clear_huge_page(&folio->page, vmf->address, 1 << order);
 			return folio;
@@ -5428,10 +5424,9 @@ retry_pud:
 	if (pmd_none(*vmf.pmd) &&
 	    thp_vma_allowable_order(vma, vm_flags, false, true, true, PMD_ORDER) && (order_suggestion == NULL || *order_suggestion >= PMD_ORDER)){
 		ret = create_huge_pmd(&vmf);
-		if (!(ret & VM_FAULT_FALLBACK)) {
-			printk(KERN_WARNING "ALLOCATED PMD\n");
+		if (!(ret & VM_FAULT_FALLBACK)) 
 			return ret;
-		}
+		
 	} else {
 		vmf.orig_pmd = pmdp_get_lockless(vmf.pmd);
 
