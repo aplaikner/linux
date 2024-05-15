@@ -4329,7 +4329,7 @@ static struct folio *alloc_anon_folio(struct vm_fault *vmf)
 	orders = thp_vma_allowable_orders(vma, vma->vm_flags, false, true, true,
 					  BIT(PMD_ORDER) - 1);
 	orders = thp_vma_suitable_orders(vma, vmf->address, orders);
-	
+
 	if(vmf->order_suggestion != NULL) {
 		/* If suggested order is either base page or double that, fallback */
 		if(*(vmf->order_suggestion) <= 1) goto fallback;
@@ -4339,6 +4339,8 @@ static struct folio *alloc_anon_folio(struct vm_fault *vmf)
 		if(orders & (1 << *(vmf->order_suggestion))) {
 			orders = 1 << *(vmf->order_suggestion);
 			printk(KERN_WARNING "Order:%d\n", *(vmf->order_suggestion));
+		} else {
+			printk(KERN_WARNING "Order:%d not allowable or suitable\n", *(vmf->order_suggestion));
 		}
 	}
 
@@ -4376,6 +4378,7 @@ static struct folio *alloc_anon_folio(struct vm_fault *vmf)
 				folio_put(folio);
 				goto next;
 			}
+			printk(KERN_WARNING "Used mTHP of order: %d\n", order);
 			folio_throttle_swaprate(folio, gfp);
 			clear_huge_page(&folio->page, vmf->address, 1 << order);
 			return folio;
