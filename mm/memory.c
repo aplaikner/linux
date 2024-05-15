@@ -4340,9 +4340,6 @@ static struct folio *alloc_anon_folio(struct vm_fault *vmf)
 	#if VM_STACK == VM_GROWSDOWN
 	if (vma->vm_flags & VM_SMARTSTACK && vmf->address >= vma->vm_end - (PAGE_SIZE << 2) && vmf->address < vma->vm_end) {
 		orders = 0b100;
-		printk(KERN_WARNING "VMA start:0x%lx\n", vma->vm_start);
-		printk(KERN_WARNING "VMA   end:0x%lx\n", vma->vm_end);
-		printk(KERN_WARNING "Allocated first page in stack as order 2 successfully\n");
 	}
 	#endif
 
@@ -4370,9 +4367,6 @@ static struct folio *alloc_anon_folio(struct vm_fault *vmf)
 			if (mem_cgroup_charge(folio, vma->vm_mm, gfp)) {
 				folio_put(folio);
 				goto next;
-			}
-			if (vma->vm_flags & VM_SMARTSTACK) {
-				printk(KERN_WARNING "Used mTHP of order: %d\n", order);
 			}
 			folio_throttle_swaprate(folio, gfp);
 			clear_huge_page(&folio->page, vmf->address, 1 << order);
@@ -5376,11 +5370,6 @@ static vm_fault_t __handle_mm_fault(struct vm_area_struct *vma,
 	p4d_t *p4d;
 	vm_fault_t ret;
 
-
-	if(vm_flags & VM_SMARTSTACK) {
-		printk(KERN_WARNING "Pagefault at:0x%lx\n", address);
-	}
-
 	pgd = pgd_offset(mm, address);
 	p4d = p4d_alloc(mm, pgd, address);
 	if (!p4d)
@@ -5433,12 +5422,9 @@ retry_pud:
 		#endif
 
 		ret = create_huge_pmd(&vmf);
-		if (!(ret & VM_FAULT_FALLBACK)) {
-			if(vm_flags & VM_SMARTSTACK) {
-				printk(KERN_WARNING "Allocated PMD-sized page for VM_SMARTSTACK range\n");
-			}
+		if (!(ret & VM_FAULT_FALLBACK)) 
 			return ret;
-		}
+		
 	} else {
 		vmf.orig_pmd = pmdp_get_lockless(vmf.pmd);
 
