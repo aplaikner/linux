@@ -4338,6 +4338,7 @@ static struct folio *alloc_anon_folio(struct vm_fault *vmf)
 		 */
 		if(orders & (1 << *(vmf->order_suggestion))) {
 			orders = 1 << *(vmf->order_suggestion);
+			printk(KERN_WARNING "Order:%d\n", *(vmf->order_suggestion));
 		}
 	}
 

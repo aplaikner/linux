@@ -956,6 +956,7 @@ static int faultin_page(struct vm_area_struct *vma,
 	}
 
 	unsigned int order_suggestion = __ilog2_u64(__roundup_pow_of_two(nr_pages));
+	//unsigned int order_suggestion = __ilog2_u64(__rounddown_pow_of_two(nr_pages));
 
 	if(order_suggestion > 9) order_suggestion = 9;
 	
