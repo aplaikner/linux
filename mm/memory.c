@@ -5417,16 +5417,6 @@ retry_pud:
 			}
 		}
 	}
-
-/*
- *	     && (order_suggestion != NULL ? *order_suggestion == PMD_ORDER : 1)) {
-		if(order_suggestion != NULL ? *order_suggestion == PMD_ORDER : 1) {
-
-		printk(KERN_WARNING "USED PMD AS SUGGESTION:%d\n", *order_suggestion);
-		}
-*/
-
-
 	vmf.pmd = pmd_alloc(mm, vmf.pud, address);
 	if (!vmf.pmd)
 		return VM_FAULT_OOM;
@@ -5438,8 +5428,10 @@ retry_pud:
 	if (pmd_none(*vmf.pmd) &&
 	    thp_vma_allowable_order(vma, vm_flags, false, true, true, PMD_ORDER) && (order_suggestion == NULL || *order_suggestion >= PMD_ORDER)){
 		ret = create_huge_pmd(&vmf);
-		if (!(ret & VM_FAULT_FALLBACK))
+		if (!(ret & VM_FAULT_FALLBACK)) {
+			printk(KERN_WARNING "ALLOCATED PMD\n");
 			return ret;
+		}
 	} else {
 		vmf.orig_pmd = pmdp_get_lockless(vmf.pmd);
 
