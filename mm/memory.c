@@ -4337,11 +4337,23 @@ static struct folio *alloc_anon_folio(struct vm_fault *vmf)
 	if (!pte)
 		return ERR_PTR(-EAGAIN);
 
-	#if VM_STACK == VM_GROWSDOWN
+	/* 
+	 * If PF happens in upper 16KiB of stack, install order 2 mTHP 
+	 * This should also happen if stack grows up, since the pthread struct
+	 * is written as the upper end of the stack.
+	 */
 	if (vma->vm_flags & VM_SMARTSTACK && vmf->address >= vma->vm_end - (PAGE_SIZE << 2) && vmf->address < vma->vm_end) {
 		orders = 0b100;
 	}
-	#endif
+#if VM_STACK != VM_GROWSDOWN
+	/* If PF happens in starting 16KiB of stack, install order 2 mTHP */
+	if (vma->vm_flags & VM_SMARTSTACK && vmf->address < vma->vm_start + (PAGE_SIZE << 2) && vmf->address > vma->vm_start) {
+		orders = 0b100;
+		printk(KERN_WARNING "VMA start:0x%lx\n", vma->vm_start);
+		printk(KERN_WARNING "VMA   end:0x%lx\n", vma->vm_end);
+		printk(KERN_WARNING "Allocated first page in stack as order 2 successfully\n");
+	}
+#endif
 
 	/*
 	 * Find the highest order where the aligned range is completely
@@ -5415,11 +5427,31 @@ retry_pud:
 
 	if (pmd_none(*vmf.pmd) &&
 	    thp_vma_allowable_order(vma, vm_flags, false, true, true, PMD_ORDER)) {
-		#if VM_STACK == VM_GROWSDOWN
+#if VM_STACK == VM_GROWSDOWN
+		/* 
+		 * If stack grows down and the PF happens at the upper end of it
+		 * allocate mTHP with exponential growth in first pagetable
+		 */
 		if ((vm_flags & VM_SMARTSTACK) && vmf.address >= vma->vm_end - PMD_SIZE) {
 			return handle_pte_fault(&vmf);
 		}		
-		#endif
+#else
+		/* 
+		 * Since pthread struct is written still written at the highest page table
+		 * range in the stack, even when stack grows up, trigger exponential mTHP
+		 * growth also here. This will probably lead to khugepaged collapsing this
+		 * and the stack start range.
+		 */
+		if ((vm_flags & VM_SMARTSTACK) && vmf.address >= vma->vm_end - PMD_SIZE) {
+			return handle_pte_fault(&vmf);
+		}
+		/* If stack grows up and PF happens in the first 2MiB of vma start, so the
+		 * lowest page table, allocate mTHP with exponential growth
+		 */
+		if ((vm_flags & VM_SMARTSTACK) && vmf.address < vma->vm_start + PMD_SIZE) {
+			return handle_pte_fault(&vmf);
+		}
+#endif
 
 		ret = create_huge_pmd(&vmf);
 		if (!(ret & VM_FAULT_FALLBACK)) 
