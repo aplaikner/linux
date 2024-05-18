@@ -4349,9 +4349,6 @@ static struct folio *alloc_anon_folio(struct vm_fault *vmf)
 	/* If PF happens in starting 16KiB of stack, install order 2 mTHP */
 	if (vma->vm_flags & VM_SMARTSTACK && vmf->address < vma->vm_start + (PAGE_SIZE << 2) && vmf->address > vma->vm_start) {
 		orders = 0b100;
-		printk(KERN_WARNING "VMA start:0x%lx\n", vma->vm_start);
-		printk(KERN_WARNING "VMA   end:0x%lx\n", vma->vm_end);
-		printk(KERN_WARNING "Allocated first page in stack as order 2 successfully\n");
 	}
 #endif
 
