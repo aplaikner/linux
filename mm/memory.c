@@ -4338,20 +4338,15 @@ static struct folio *alloc_anon_folio(struct vm_fault *vmf)
 		return ERR_PTR(-EAGAIN);
 
 	/* 
-	 * If PF happens in upper 16KiB of stack, install order 2 mTHP 
-	 * This should also happen if stack grows up, since the pthread struct
-	 * is written as the upper end of the stack.
+	 * If PF happens in upper 16KiB of stack, install order 2 mTHP.
+	 * This will always happen in pthread stacks, since the pthread
+	 * struct etc. is written at the top of the stack (highest addr)
 	 */
+#if VM_STACK == VM_GROWSDOWN
 	if (vma->vm_flags & VM_SMARTSTACK && vmf->address >= vma->vm_end - (PAGE_SIZE << 2) && vmf->address < vma->vm_end && orders & (1<<2)) {
 		orders = 0b100;
 	}
-#if VM_STACK != VM_GROWSDOWN
-	/* If PF happens in starting 16KiB of stack, install order 2 mTHP */
-	if (vma->vm_flags & VM_SMARTSTACK && vmf->address < vma->vm_start + (PAGE_SIZE << 2) && vmf->address > vma->vm_start && orders & (1<<2)) {
-		orders = 0b100;
-	}
 #endif
-
 	/*
 	 * Find the highest order where the aligned range is completely
 	 * pte_none(). Note that all remaining orders will be completely
@@ -5432,24 +5427,7 @@ retry_pud:
 		if ((vm_flags & VM_SMARTSTACK) && vmf.address >= vma->vm_end - PMD_SIZE) {
 			return handle_pte_fault(&vmf);
 		}		
-#else
-		/* 
-		 * Since pthread struct is written still written at the highest page table
-		 * range in the stack, even when stack grows up, trigger exponential mTHP
-		 * growth also here. This will probably lead to khugepaged collapsing this
-		 * and the stack start range.
-		 */
-		if ((vm_flags & VM_SMARTSTACK) && vmf.address >= vma->vm_end - PMD_SIZE) {
-			return handle_pte_fault(&vmf);
-		}
-		/* If stack grows up and PF happens in the first 2MiB of vma start, so the
-		 * lowest page table, allocate mTHP with exponential growth
-		 */
-		if ((vm_flags & VM_SMARTSTACK) && vmf.address < vma->vm_start + PMD_SIZE) {
-			return handle_pte_fault(&vmf);
-		}
 #endif
-
 		ret = create_huge_pmd(&vmf);
 		if (!(ret & VM_FAULT_FALLBACK)) 
 			return ret;
