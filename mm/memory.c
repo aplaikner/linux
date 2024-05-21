@@ -4342,12 +4342,12 @@ static struct folio *alloc_anon_folio(struct vm_fault *vmf)
 	 * This should also happen if stack grows up, since the pthread struct
 	 * is written as the upper end of the stack.
 	 */
-	if (vma->vm_flags & VM_SMARTSTACK && vmf->address >= vma->vm_end - (PAGE_SIZE << 2) && vmf->address < vma->vm_end) {
+	if (vma->vm_flags & VM_SMARTSTACK && vmf->address >= vma->vm_end - (PAGE_SIZE << 2) && vmf->address < vma->vm_end && orders & (1<<2)) {
 		orders = 0b100;
 	}
 #if VM_STACK != VM_GROWSDOWN
 	/* If PF happens in starting 16KiB of stack, install order 2 mTHP */
-	if (vma->vm_flags & VM_SMARTSTACK && vmf->address < vma->vm_start + (PAGE_SIZE << 2) && vmf->address > vma->vm_start) {
+	if (vma->vm_flags & VM_SMARTSTACK && vmf->address < vma->vm_start + (PAGE_SIZE << 2) && vmf->address > vma->vm_start && orders & (1<<2)) {
 		orders = 0b100;
 	}
 #endif
