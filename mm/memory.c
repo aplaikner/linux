@@ -4328,7 +4328,7 @@ static struct folio *alloc_anon_folio(struct vm_fault *vmf)
 	 */
 	orders = thp_vma_allowable_orders(vma, vma->vm_flags, false, true, true,
 					  BIT(PMD_ORDER) - 1);
-	orders = thp_vma_suitable_orders(vma, vmf->address, orders, vmf->upper_bound, vmf->lower_bound);
+	orders = thp_vma_suitable_orders(vma, vmf->address, orders, vmf->upper_bound);
 
 	if (!orders)
 		goto fallback;
@@ -4581,7 +4581,7 @@ vm_fault_t do_set_pmd(struct vm_fault *vmf, struct page *page)
 	pmd_t entry;
 	vm_fault_t ret = VM_FAULT_FALLBACK;
 
-	if (!thp_vma_suitable_order(vma, haddr, PMD_ORDER, vmf->upper_bound, vmf->lower_bound))
+	if (!thp_vma_suitable_order(vma, vmf->address, PMD_ORDER, vmf->upper_bound))
 		return ret;
 
 	if (page != &folio->page || folio_order(folio) != HPAGE_PMD_ORDER)
@@ -5349,8 +5349,7 @@ unlock:
  * and __folio_lock_or_retry().
  */
 static vm_fault_t __handle_mm_fault(struct vm_area_struct *vma,
-		unsigned long address, unsigned int flags, unsigned long* upper_bound, 
-		unsigned long* lower_bound)
+		unsigned long address, unsigned int flags, unsigned long* upper_bound)
 {
 	struct vm_fault vmf = {
 		.vma = vma,
@@ -5360,7 +5359,6 @@ static vm_fault_t __handle_mm_fault(struct vm_area_struct *vma,
 		.pgoff = linear_page_index(vma, address),
 		.gfp_mask = __get_fault_gfp_mask(vma),
 		.upper_bound = upper_bound,
-		.lower_bound= lower_bound,
 	};
 
 	struct mm_struct *mm = vma->vm_mm;
@@ -5572,8 +5570,7 @@ static vm_fault_t sanitize_fault_flags(struct vm_area_struct *vma,
 
 
 vm_fault_t handle_mm_range_fault(struct vm_area_struct *vma, unsigned long address,
-			   unsigned int flags, struct pt_regs *regs, unsigned long* upper_bound, 
-			   unsigned long* lower_bound)
+			   unsigned int flags, struct pt_regs *regs, unsigned long* upper_bound)
 {
 	/* If the fault handler drops the mmap_lock, vma may be freed */
 	struct mm_struct *mm = vma->vm_mm;
@@ -5604,7 +5601,7 @@ vm_fault_t handle_mm_range_fault(struct vm_area_struct *vma, unsigned long addre
 	if (unlikely(is_vm_hugetlb_page(vma)))
 		ret = hugetlb_fault(vma->vm_mm, vma, address, flags);
 	else
-		ret = __handle_mm_fault(vma, address, flags, upper_bound, lower_bound);
+		ret = __handle_mm_fault(vma, address, flags, upper_bound);
 
 	lru_gen_exit_fault();
 
@@ -5634,7 +5631,7 @@ out:
 vm_fault_t handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
 			   unsigned int flags, struct pt_regs *regs)
 {
-	return handle_mm_range_fault(vma, address, flags, regs, NULL, NULL);
+	return handle_mm_range_fault(vma, address, flags, regs, NULL);
 }
 EXPORT_SYMBOL_GPL(handle_mm_fault);
 

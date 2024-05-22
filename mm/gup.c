@@ -957,7 +957,7 @@ static int faultin_page(struct vm_area_struct *vma,
 
 	unsigned long upper_bound = address + nr_pages * PAGE_SIZE;
 	printk(KERN_WARNING "Lower bound is %lx and upper bound is %lx\n", address, upper_bound);
-	ret = handle_mm_range_fault(vma, address, fault_flags, NULL, &upper_bound, &address);
+	ret = handle_mm_range_fault(vma, address, fault_flags, NULL, &upper_bound);
 
 	if (ret & VM_FAULT_COMPLETED) {
 		/*

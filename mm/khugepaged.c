@@ -925,7 +925,7 @@ static int hugepage_vma_revalidate(struct mm_struct *mm, unsigned long address,
 	if (!vma)
 		return SCAN_VMA_NULL;
 
-	if (!thp_vma_suitable_order(vma, address, PMD_ORDER, NULL, NULL))
+	if (!thp_vma_suitable_order(vma, address, PMD_ORDER, NULL))
 		return SCAN_ADDRESS_RANGE;
 	if (!thp_vma_allowable_order(vma, vma->vm_flags, false, false,
 				     cc->is_khugepaged, PMD_ORDER))
