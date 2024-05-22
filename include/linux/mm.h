@@ -526,7 +526,8 @@ struct vm_fault {
 		unsigned long real_address;	/* Faulting virtual address - unmasked */
 	};
 
-	unsigned int* order_suggestion;
+	unsigned long* upper_bound;
+	unsigned long* lower_bound;
 
 	enum fault_flag flags;		/* FAULT_FLAG_xxx flags
 					 * XXX: should really be 'const' */
@@ -2419,9 +2420,10 @@ struct vm_area_struct *lock_mm_and_find_vma(struct mm_struct *mm,
 extern vm_fault_t handle_mm_fault(struct vm_area_struct *vma,
 				  unsigned long address, unsigned int flags,
 				  struct pt_regs *regs);
-extern vm_fault_t handle_mm_fault_suggestion(struct vm_area_struct *vma,
+extern vm_fault_t handle_mm_range_fault(struct vm_area_struct *vma,
 				  unsigned long address, unsigned int flags,
-				  struct pt_regs *regs, unsigned int* order_suggestion);
+				  struct pt_regs *regs, unsigned long* upper_bound, 
+				  unsigned long* lower_bound);
 extern int fixup_user_fault(struct mm_struct *mm,
 			    unsigned long address, unsigned int fault_flags,
 			    bool *unlocked);
@@ -2438,9 +2440,10 @@ static inline vm_fault_t handle_mm_fault(struct vm_area_struct *vma,
 	BUG();
 	return VM_FAULT_SIGBUS;
 }
-static inline vm_fault_t handle_mm_fault_suggestion(struct vm_area_struct *vma,
+static inline vm_fault_t handle_mm_range_fault(struct vm_area_struct *vma,
 					 unsigned long address, unsigned int flags,
-					 struct pt_regs *regs, unsigned int* order_suggestion)
+					 struct pt_regs *regs, unsigned long* upper_bound, 
+					 unsigned long* lower_bound)
 {
 	/* should never happen if there's no MMU */
 	BUG();

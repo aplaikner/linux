@@ -269,7 +269,7 @@ restart:
 			 */
 			if ((pvmw->flags & PVMW_SYNC) &&
 			    thp_vma_suitable_order(vma, pvmw->address,
-						   PMD_ORDER) &&
+						   PMD_ORDER, NULL, NULL) &&
 			    (pvmw->nr_pages >= HPAGE_PMD_NR)) {
 				spinlock_t *ptl = pmd_lock(mm, pvmw->pmd);
 

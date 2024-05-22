@@ -149,7 +149,7 @@ static inline int next_order(unsigned long *orders, int prev)
  *     area.
  */
 static inline bool thp_vma_suitable_order(struct vm_area_struct *vma,
-		unsigned long addr, int order)
+		unsigned long addr, int order, unsigned long* upper_bound, unsigned long* lower_bound)
 {
 	unsigned long hpage_size = PAGE_SIZE << order;
 	unsigned long haddr;
@@ -165,6 +165,12 @@ static inline bool thp_vma_suitable_order(struct vm_area_struct *vma,
 
 	if (haddr < vma->vm_start || haddr + hpage_size > vma->vm_end)
 		return false;
+
+	if(upper_bound != NULL && lower_bound != NULL && (haddr < *lower_bound || haddr + hpage_size > *upper_bound)){
+		printk(KERN_WARNING "Order:%d not admissible!\n", order);
+		return false;
+	}
+
 	return true;
 }
 
@@ -174,7 +180,7 @@ static inline bool thp_vma_suitable_order(struct vm_area_struct *vma,
  * All orders that pass the checks are returned as a bitfield.
  */
 static inline unsigned long thp_vma_suitable_orders(struct vm_area_struct *vma,
-		unsigned long addr, unsigned long orders)
+		unsigned long addr, unsigned long orders, unsigned long* upper_bound, unsigned long* lower_bound)
 {
 	int order;
 
@@ -188,7 +194,7 @@ static inline unsigned long thp_vma_suitable_orders(struct vm_area_struct *vma,
 	order = highest_order(orders);
 
 	while (orders) {
-		if (thp_vma_suitable_order(vma, addr, order))
+		if (thp_vma_suitable_order(vma, addr, order, upper_bound, lower_bound))
 			break;
 		order = next_order(&orders, order);
 	}
@@ -392,13 +398,13 @@ static inline bool folio_test_pmd_mappable(struct folio *folio)
 }
 
 static inline bool thp_vma_suitable_order(struct vm_area_struct *vma,
-		unsigned long addr, int order)
+		unsigned long addr, int order, unsigned long* upper_bound, unsigned long* lower_bound)
 {
 	return false;
 }
 
 static inline unsigned long thp_vma_suitable_orders(struct vm_area_struct *vma,
-		unsigned long addr, unsigned long orders)
+		unsigned long addr, unsigned long orders, unsigned long* upper_bound, unsigned long* lower_bound)
 {
 	return 0;
 }
