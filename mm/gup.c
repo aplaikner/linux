@@ -955,17 +955,9 @@ static int faultin_page(struct vm_area_struct *vma,
 		VM_BUG_ON(fault_flags & FAULT_FLAG_WRITE);
 	}
 
-	unsigned int order_suggestion = __ilog2_u64(__roundup_pow_of_two(nr_pages));
-	//unsigned int order_suggestion = __ilog2_u64(__rounddown_pow_of_two(nr_pages));
-
-	if(order_suggestion > 9) order_suggestion = 9;
-	
-	/* Limit how much overallocation happens downwards to <= PAGE_SIZE, since its
-	 * memory that probably won't be in use. 
-	 */
-	while(address - ALIGN_DOWN(address, PAGE_SIZE << order_suggestion) > PAGE_SIZE) order_suggestion--;
-
-	ret = handle_mm_fault_suggestion(vma, address, fault_flags, NULL, &order_suggestion);
+	unsigned long upper_bound = address + nr_pages * PAGE_SIZE;
+	printk(KERN_WARNING "Lower bound is %lx and upper bound is %lx\n", address, upper_bound);
+	ret = handle_mm_range_fault(vma, address, fault_flags, NULL, &upper_bound, &address);
 
 	if (ret & VM_FAULT_COMPLETED) {
 		/*
