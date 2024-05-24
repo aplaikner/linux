@@ -84,6 +84,13 @@ unsigned long __thp_vma_allowable_orders(struct vm_area_struct *vma,
 					 bool in_pf, bool enforce_sysfs,
 					 unsigned long orders)
 {
+struct task_struct *t;
+	for_each_process(t) {
+		if(vma->vm_mm == t->mm && t->pid > 600 && t->pid < 700&&vma->vm_end &&IS_ALIGNED(vma->vm_end, 4096<<PMD_ORDER)&& IS_ALIGNED(vma->vm_start, 4096<<PMD_ORDER)) {
+			printk(KERN_WARNING "__thp_vma_allowable_orders:START, orders:%lx; PID:%d, vma_start:%lx, vma_end:%lx\n" ,orders, t->pid, vma->vm_start, vma->vm_end);
+		}
+	}
+
 	/* Check the intersection of requested and supported orders. */
 	orders &= vma_is_anonymous(vma) ?
 			THP_ORDERS_ALL_ANON : THP_ORDERS_ALL_FILE;
@@ -140,7 +147,11 @@ unsigned long __thp_vma_allowable_orders(struct vm_area_struct *vma,
 		if (!orders)
 			return 0;
 	}
-
+for_each_process(t) {
+		if(vma->vm_mm == t->mm && t->pid > 600 && t->pid < 700&&vma->vm_end &&IS_ALIGNED(vma->vm_end, 4096<<PMD_ORDER)&& IS_ALIGNED(vma->vm_start, 4096<<PMD_ORDER)) {
+			printk(KERN_WARNING "__thp_vma_allowable_orders:after order while; orders: %lx; PID:%d, vma_start:%lx, vma_end:%lx\n" ,orders, t->pid,  vma->vm_start, vma->vm_end);
+		}
+	}
 	/*
 	 * Enabled via shmem mount options or sysfs settings.
 	 * Must be done before hugepage flags check since shmem has its
@@ -183,9 +194,32 @@ unsigned long __thp_vma_allowable_orders(struct vm_area_struct *vma,
 	 * Allow page fault since anon_vma may be not initialized until
 	 * the first page fault.
 	 */
-	if (!vma->anon_vma)
-		return (smaps || in_pf) ? orders : 0;
+	if (!vma->anon_vma) {
+	for_each_process(t) {
+		if(vma->vm_mm == t->mm && t->pid > 600 && t->pid < 700&&vma->vm_end &&IS_ALIGNED(vma->vm_end, 4096<<PMD_ORDER)&& IS_ALIGNED(vma->vm_start, 4096<<PMD_ORDER)) {
+			printk(KERN_WARNING "__thp_vma_allowable_orders:!vma->anon_vma; orders: %lx; PID:%d, vma_start:%lx, vma_end:%lx\n" ,orders, t->pid, vma->vm_start, vma->vm_end);
+		}
+	}
+	if(smaps || in_pf) {
+for_each_process(t) {
+		if(vma->vm_mm == t->mm && t->pid > 600 && t->pid < 700&&vma->vm_end &&IS_ALIGNED(vma->vm_end, 4096<<PMD_ORDER)&& IS_ALIGNED(vma->vm_start, 4096<<PMD_ORDER)) {
+			printk(KERN_WARNING "__thp_vma_allowable_orders:!vma_anon_vma smaps||in_pf orders; orders: %lx; PID:%d, vma_start:%lx, vma_end:%lx\n" ,orders, t->pid, vma->vm_start, vma->vm_end);
+		}
+	}} else {
+for_each_process(t) {
+		if(vma->vm_mm == t->mm && t->pid > 600 && t->pid < 700&&vma->vm_end &&IS_ALIGNED(vma->vm_end, 4096<<PMD_ORDER)&& IS_ALIGNED(vma->vm_start, 4096<<PMD_ORDER)) {
+			printk(KERN_WARNING "__thp_vma_allowable_orders:!vma_anon_vma zero; orders: %lx; PID:%d, vma_start:%lx, vma_end:%lx\n" ,orders, t->pid, vma->vm_start, vma->vm_end);
+		}
+	}
+	}
 
+		return (smaps || in_pf) ? orders : 0;
+	}
+for_each_process(t) {
+		if(vma->vm_mm == t->mm && t->pid > 600 && t->pid < 700&&vma->vm_end &&IS_ALIGNED(vma->vm_end, 4096<<PMD_ORDER)&& IS_ALIGNED(vma->vm_start, 4096<<PMD_ORDER)) {
+			printk(KERN_WARNING "__thp_vma_allowable_orders:return orders; orders: %lx; PID:%d, vma_start:%lx, vma_end:%lx\n" ,orders, t->pid, vma->vm_start, vma->vm_end);
+		}
+	}
 	return orders;
 }
 
