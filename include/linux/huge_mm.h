@@ -177,7 +177,6 @@ static inline bool thp_fits_in_range(unsigned long addr, int order, unsigned lon
 	haddr = ALIGN_DOWN(addr, hpage_size);
 
 	if(upper_bound != NULL && (haddr < addr || haddr + hpage_size > *upper_bound)){
-		printk(KERN_WARNING "Order:%d not admissible!\n", order);
 		return false;
 	}
 
