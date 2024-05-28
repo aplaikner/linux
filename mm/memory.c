@@ -4328,7 +4328,7 @@ static struct folio *alloc_anon_folio(struct vm_fault *vmf)
 	 */
 	orders = thp_vma_allowable_orders(vma, vma->vm_flags, false, true, true,
 					  BIT(PMD_ORDER) - 1);
-	orders = thp_vma_suitable_orders(vma, vmf->address, orders, vmf->upper_bound);
+	orders = thp_vma_suitable_orders(vma, vmf->address, orders);
 
 	if (!orders)
 		goto fallback;
@@ -4342,11 +4342,14 @@ static struct folio *alloc_anon_folio(struct vm_fault *vmf)
 	 * Find the highest order where the aligned range is completely
 	 * pte_none(). Note that all remaining orders will be completely
 	 * pte_none().
+	 * Given an upper bound, also check if the range of an order fits
+	 * into the given range. 
 	 */
 	order = highest_order(orders);
 	while (orders) {
 		addr = ALIGN_DOWN(vmf->address, PAGE_SIZE << order);
-		if (pte_range_none(pte + pte_index(addr), 1 << order))
+		if (pte_range_none(pte + pte_index(addr), 1 << order) && 
+		    thp_fits_in_range(vmf->address, order, vmf->upper_bound))
 			break;
 		order = next_order(&orders, order);
 	}
@@ -4581,7 +4584,7 @@ vm_fault_t do_set_pmd(struct vm_fault *vmf, struct page *page)
 	pmd_t entry;
 	vm_fault_t ret = VM_FAULT_FALLBACK;
 
-	if (!thp_vma_suitable_order(vma, vmf->address, PMD_ORDER, vmf->upper_bound))
+	if (!thp_vma_suitable_order(vma, haddr, PMD_ORDER))
 		return ret;
 
 	if (page != &folio->page || folio_order(folio) != HPAGE_PMD_ORDER)

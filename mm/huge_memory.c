@@ -132,7 +132,7 @@ unsigned long __thp_vma_allowable_orders(struct vm_area_struct *vma,
 
 		while (orders) {
 			addr = vma->vm_end - (PAGE_SIZE << order);
-			if (thp_vma_suitable_order(vma, addr, order, NULL))
+			if (thp_vma_suitable_order(vma, addr, order))
 				break;
 			order = next_order(&orders, order);
 		}
@@ -1008,11 +1008,14 @@ vm_fault_t do_huge_pmd_anonymous_page(struct vm_fault *vmf)
 	struct folio *folio;
 	unsigned long haddr = vmf->address & HPAGE_PMD_MASK;
 
-	if (!thp_vma_suitable_order(vma, vmf->address, PMD_ORDER, vmf->upper_bound))
+	if (!thp_vma_suitable_order(vma, haddr, PMD_ORDER))
 		return VM_FAULT_FALLBACK;
 	if (unlikely(anon_vma_prepare(vma)))
 		return VM_FAULT_OOM;
 	khugepaged_enter_vma(vma, vma->vm_flags);
+	if(!thp_fits_in_range(vmf->address, PMD_ORDER, vmf->upper_bound)) {
+		return VM_FAULT_FALLBACK;
+	}
 
 	if (!(vmf->flags & FAULT_FLAG_WRITE) &&
 			!mm_forbids_zeropage(vma->vm_mm) &&
