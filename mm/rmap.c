@@ -75,6 +75,7 @@
 #include <linux/memremap.h>
 #include <linux/userfaultfd_k.h>
 #include <linux/mm_inline.h>
+#include <linux/khugepaged.h>
 
 #include <asm/tlbflush.h>
 
@@ -224,6 +225,8 @@ int __anon_vma_prepare(struct vm_area_struct *vma)
 		put_anon_vma(allocated);
 	if (unlikely(avc))
 		anon_vma_chain_free(avc);
+
+	khugepaged_enter_vma(vma, vma->vm_flags);
 
 	return 0;
 
