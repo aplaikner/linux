@@ -4350,9 +4350,49 @@ static struct folio *alloc_anon_folio(struct vm_fault *vmf)
 			break;
 		order = next_order(&orders, order);
 	}
-
+	/*
+	if (vmf->upper_bound) {
+		struct ptdesc* ptdesc = virt_to_ptdesc(pte);
+		if(ptdesc) {
+			printk(KERN_WARNING "Flag before setting:%lx\n", ptdesc->__page_flags);
+			ptdesc->__page_flags |= (0x00000100);
+			printk(KERN_WARNING "Flag set:%lx\n", ptdesc->__page_flags);
+			}
+	}
+	*/
+	/*
+		if (vmf->upper_bound) {
+			struct ptdesc* ptdesc = virt_to_ptdesc(pte);
+			if(ptdesc) {
+				printk(KERN_WARNING "Flag before setting:%lx\n", ptdesc->__page_flags);
+				spin_lock(&(ptdesc->ptl));
+				ptdesc->__page_flags |= (0x00000100);
+				spin_unlock(&(ptdesc->ptl));
+				printk(KERN_WARNING "Flag set:%lx\n", ptdesc->__page_flags);
+				printk(KERN_WARNING "sizeof:%ld\n", sizeof(ptdesc->__page_flags));
+			}
+		}
+*/
 	pte_unmap(pte);
-
+	
+	/* Set flag in pagetable to avoid collapsing of this range */
+	//spinlock_t *lock;
+	if (vmf->upper_bound) {
+		pte_t* temp_pte = pte_offset_map_lock(vma->vm_mm, vmf->pmd, vmf->address, &vmf->ptl);	
+		if(temp_pte) {
+			struct ptdesc* ptdesc = virt_to_ptdesc(temp_pte);
+			if(ptdesc) {
+				printk(KERN_WARNING "Flag before setting:%lx\n", ptdesc->__page_flags);
+				ptdesc->__page_flags |= (1<<_PAGE_BIT_SOFTW1);
+				//arch/x86/include/asm/pgtable_types.h 
+				////0x00000001000000000
+				printk(KERN_WARNING "Flag set:%lx\n", ptdesc->__page_flags);
+				printk(KERN_WARNING "Page type:%x\n", ptdesc_page(ptdesc)->page_type);
+				//printk(KERN_WARNING "sizeof:%ld\n", sizeof(ptdesc->__page_flags));
+			}
+			pte_unmap_unlock(temp_pte, vmf->ptl);
+		}
+	}
 	/* Try allocating the highest of the remaining orders. */
 	gfp = vma_thp_gfp_mask(vma);
 	while (orders) {
@@ -4363,6 +4403,7 @@ static struct folio *alloc_anon_folio(struct vm_fault *vmf)
 				folio_put(folio);
 				goto next;
 			}
+			
 			folio_throttle_swaprate(folio, gfp);
 			clear_huge_page(&folio->page, vmf->address, 1 << order);
 			return folio;
@@ -4453,8 +4494,16 @@ static vm_fault_t do_anonymous_page(struct vm_fault *vmf)
 		entry = pte_mkwrite(pte_mkdirty(entry), vma);
 
 	vmf->pte = pte_offset_map_lock(vma->vm_mm, vmf->pmd, addr, &vmf->ptl);
+
 	if (!vmf->pte)
 		goto release;
+	/*
+	if (vmf->upper_bound) {
+		//printk(KERN_WARNING "Flag before setting:%lx\n", ptdesc->__page_flags);
+		virt_to_ptdesc(vmf->pte)->__page_flags |= 0x00000100;
+		//printk(KERN_WARNING "Flag after setting:%lx\n", virt_to_ptdesc(vmf->pte)->__page_flags);
+	}
+	*/
 	if (nr_pages == 1 && vmf_pte_changed(vmf)) {
 		update_mmu_tlb(vma, addr, vmf->pte);
 		goto release;

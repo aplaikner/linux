@@ -2876,6 +2876,7 @@ static inline bool pagetable_is_reserved(struct ptdesc *pt)
 static inline struct ptdesc *pagetable_alloc(gfp_t gfp, unsigned int order)
 {
 	struct page *page = alloc_pages(gfp | __GFP_COMP, order);
+	printk(KERN_WARNING "After flags set pagetable alloc: %lx\n", page_ptdesc(page)->__page_flags);
 
 	return page_ptdesc(page);
 }
@@ -2964,7 +2965,9 @@ static inline bool pagetable_pte_ctor(struct ptdesc *ptdesc)
 
 	if (!ptlock_init(ptdesc))
 		return false;
+	//printk(KERN_WARNING "Before flags set: %lx\n", ptdesc->__page_flags);
 	__folio_set_pgtable(folio);
+	//printk(KERN_WARNING "After flags set: %lx\n", ptdesc->__page_flags);
 	lruvec_stat_add_folio(folio, NR_PAGETABLE);
 	return true;
 }

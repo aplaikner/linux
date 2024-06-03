@@ -30,6 +30,8 @@ gfp_t __userpte_alloc_gfp = GFP_PGTABLE_USER | PGTABLE_HIGHMEM;
 
 pgtable_t pte_alloc_one(struct mm_struct *mm)
 {
+
+	//printk(KERN_WARNING "GFP pagetable user:%d\n",__userpte_alloc_gfp);
 	return __pte_alloc_one(mm, __userpte_alloc_gfp);
 }
 

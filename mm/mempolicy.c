@@ -2250,6 +2250,7 @@ struct page *alloc_pages_mpol(gfp_t gfp, unsigned int order,
 			 */
 			page = __alloc_pages_node(nid,
 				gfp | __GFP_THISNODE | __GFP_NORETRY, order);
+			printk(KERN_WARNING "FIRST if flags:%lx\n", page->flags);
 			if (page || !(gfp & __GFP_DIRECT_RECLAIM))
 				return page;
 			/*
@@ -2263,6 +2264,7 @@ struct page *alloc_pages_mpol(gfp_t gfp, unsigned int order,
 
 	page = __alloc_pages(gfp, order, nid, nodemask);
 
+	printk(KERN_WARNING "Not if flags:%lx\n", page->flags);
 	if (unlikely(pol->mode == MPOL_INTERLEAVE) && page) {
 		/* skip NUMA_INTERLEAVE_HIT update if numa stats is disabled */
 		if (static_branch_likely(&vm_numa_stat_key) &&

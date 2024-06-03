@@ -1278,6 +1278,27 @@ static int hpage_collapse_scan_pmd(struct mm_struct *mm,
 		goto out;
 	}
 
+	struct ptdesc* ptdesc = virt_to_ptdesc(pte);
+	if(ptdesc) {
+		if(ptdesc->__page_flags & (1<<_PAGE_BIT_SOFTW1)) {
+			printk(KERN_WARNING "No collapse\n");
+			result=SCAN_PMD_NULL;
+			goto out_unmap;
+		}
+	}
+/*
+	struct ptdesc* ptdesc = virt_to_ptdesc(pte);
+	if(ptdesc) {
+		spin_lock(&(ptdesc->ptl));
+		unsigned long res = ptdesc->__page_flags & (1 << 5);
+		spin_unlock(&(ptdesc->ptl));
+		if(res) {
+			printk(KERN_WARNING "Flag is set, not collapsing\n");
+			result = SCAN_EXCEED_NONE_PTE;
+			goto out_unmap;
+		}
+	}
+*/
 	for (_address = address, _pte = pte; _pte < pte + HPAGE_PMD_NR;
 	     _pte++, _address += PAGE_SIZE) {
 		pte_t pteval = ptep_get(_pte);

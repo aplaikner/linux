@@ -3314,6 +3314,7 @@ try_this_zone:
 		page = rmqueue(ac->preferred_zoneref->zone, zone, order,
 				gfp_mask, alloc_flags, ac->migratetype);
 		if (page) {
+			printk(KERN_WARNING "Try this zone: %lx\n", page->flags);
 			prep_new_page(page, order, gfp_mask, alloc_flags);
 
 			/*
@@ -4541,6 +4542,7 @@ struct page *__alloc_pages(gfp_t gfp, unsigned int order, int preferred_nid,
 {
 	struct page *page;
 	unsigned int alloc_flags = ALLOC_WMARK_LOW;
+	printk(KERN_WARNING "Alloc flags at start: %x\n", alloc_flags);
 	gfp_t alloc_gfp; /* The gfp_t that was actually used for allocation */
 	struct alloc_context ac = { };
 
@@ -4570,11 +4572,14 @@ struct page *__alloc_pages(gfp_t gfp, unsigned int order, int preferred_nid,
 	 * memory until all local zones are considered.
 	 */
 	alloc_flags |= alloc_flags_nofragment(ac.preferred_zoneref->zone, gfp);
+	printk(KERN_WARNING "Alloc flags after nofragment: %x\n", alloc_flags);
 
 	/* First allocation attempt */
 	page = get_page_from_freelist(alloc_gfp, order, alloc_flags, &ac);
-	if (likely(page))
+	if (likely(page)) {
+		printk(KERN_WARNING "Likely page: %lx\n", page->flags);
 		goto out;
+	}
 
 	alloc_gfp = gfp;
 	ac.spread_dirty_pages = false;
@@ -4586,6 +4591,7 @@ struct page *__alloc_pages(gfp_t gfp, unsigned int order, int preferred_nid,
 	ac.nodemask = nodemask;
 
 	page = __alloc_pages_slowpath(alloc_gfp, order, &ac);
+	printk(KERN_WARNING "Slowpath page: %lx\n", page->flags);
 
 out:
 	if (memcg_kmem_online() && (gfp & __GFP_ACCOUNT) && page &&
