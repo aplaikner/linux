@@ -955,8 +955,13 @@ static int faultin_page(struct vm_area_struct *vma,
 		VM_BUG_ON(fault_flags & FAULT_FLAG_WRITE);
 	}
 
-	unsigned long upper_bound = address + nr_pages * PAGE_SIZE;
-	ret = handle_mm_range_fault(vma, address, fault_flags, NULL, &upper_bound);
+	if (*flags & FOLL_MADV_POPULATE) {
+		printk(KERN_WARNING "Faultin in page for madvise populate\n");
+		unsigned long upper_bound = address + nr_pages * PAGE_SIZE;
+		ret = handle_mm_range_fault(vma, address, fault_flags, NULL, &upper_bound);
+	} else {
+		ret = handle_mm_fault(vma, address, fault_flags, NULL);
+	}
 
 	if (ret & VM_FAULT_COMPLETED) {
 		/*
