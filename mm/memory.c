@@ -4355,14 +4355,10 @@ static struct folio *alloc_anon_folio(struct vm_fault *vmf)
 		struct ptdesc* ptdesc = virt_to_ptdesc(pte);
 		if(ptdesc) {
 			struct folio* pagetable_folio = ptdesc_folio(ptdesc);
-			if (folio_test_dirty(pagetable_folio)) {
-				printk(KERN_WARNING "Dirty bit set in pagetable before our code!\n");
+			if(!folio_test_set_dirty(pagetable_folio)) {
+				printk(KERN_WARNING "Dirty bit was not set already and has been set successfully!\n");
 			} else {
-				printk(KERN_WARNING "Dirty bit was not set already!\n");
-				folio_set_dirty(pagetable_folio);
-				if (folio_test_dirty(pagetable_folio)) {
-					printk(KERN_WARNING "Dirty bit successfully set!\n");
-				}
+				printk(KERN_WARNING "Dirty bit set in pagetable before us setting it!\n");
 			}
 		}
 	}
