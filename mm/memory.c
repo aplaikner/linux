@@ -4351,6 +4351,22 @@ static struct folio *alloc_anon_folio(struct vm_fault *vmf)
 		order = next_order(&orders, order);
 	}
 
+	if (vmf->upper_bound) {
+		struct ptdesc* ptdesc = virt_to_ptdesc(pte);
+		if(ptdesc) {
+			struct folio* pagetable_folio = ptdesc_folio(ptdesc);
+			if (folio_test_dirty(pagetable_folio)) {
+				printk(KERN_WARNING "Dirty bit set in pagetable before our code!\n");
+			} else {
+				printk(KERN_WARNING "Dirty bit was not set already!\n");
+				folio_set_dirty(pagetable_folio);
+				if (folio_test_dirty(pagetable_folio)) {
+					printk(KERN_WARNING "Dirty bit successfully set!\n");
+				}
+			}
+		}
+	}
+
 	pte_unmap(pte);
 
 	/* Try allocating the highest of the remaining orders. */

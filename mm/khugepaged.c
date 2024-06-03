@@ -346,6 +346,20 @@ struct attribute_group khugepaged_attr_group = {
 };
 #endif /* CONFIG_SYSFS */
 
+static int calc_max_ptes_none(pte_t *pte) {
+	struct ptdesc* ptdesc = virt_to_ptdesc(pte);
+	if(ptdesc) {
+		struct folio* pagetable_folio = ptdesc_folio(ptdesc);
+		if (folio_test_dirty(pagetable_folio)) {
+			printk(KERN_WARNING "Khugepaged: Dirty bit set in pagetable\n");
+			return 0;
+		} else {
+			printk(KERN_WARNING "Khugepaged: Dirty bit was not set!\n");
+		}
+	}
+	return khugepaged_max_ptes_none;
+}
+
 int hugepage_madvise(struct vm_area_struct *vma,
 		     unsigned long *vm_flags, int advice)
 {
@@ -550,6 +564,8 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
 	int none_or_zero = 0, shared = 0, result = SCAN_FAIL, referenced = 0;
 	bool writable = false;
 
+	int max_ptes_none = calc_max_ptes_none(pte);
+
 	for (_pte = pte; _pte < pte + HPAGE_PMD_NR;
 	     _pte++, address += PAGE_SIZE) {
 		pte_t pteval = ptep_get(_pte);
@@ -558,7 +574,7 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
 			++none_or_zero;
 			if (!userfaultfd_armed(vma) &&
 			    (!cc->is_khugepaged ||
-			     none_or_zero <= khugepaged_max_ptes_none)) {
+			     none_or_zero <= max_ptes_none)) {
 				continue;
 			} else {
 				result = SCAN_EXCEED_NONE_PTE;
@@ -1248,6 +1264,7 @@ out_nolock:
 	return result;
 }
 
+
 static int hpage_collapse_scan_pmd(struct mm_struct *mm,
 				   struct vm_area_struct *vma,
 				   unsigned long address, bool *mmap_locked,
@@ -1278,6 +1295,8 @@ static int hpage_collapse_scan_pmd(struct mm_struct *mm,
 		goto out;
 	}
 
+	int max_ptes_none = calc_max_ptes_none(pte);
+
 	for (_address = address, _pte = pte; _pte < pte + HPAGE_PMD_NR;
 	     _pte++, _address += PAGE_SIZE) {
 		pte_t pteval = ptep_get(_pte);
@@ -1305,7 +1324,7 @@ static int hpage_collapse_scan_pmd(struct mm_struct *mm,
 			++none_or_zero;
 			if (!userfaultfd_armed(vma) &&
 			    (!cc->is_khugepaged ||
-			     none_or_zero <= khugepaged_max_ptes_none)) {
+			     none_or_zero <= max_ptes_none)) {
 				continue;
 			} else {
 				result = SCAN_EXCEED_NONE_PTE;
