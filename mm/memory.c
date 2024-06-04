@@ -4354,7 +4354,6 @@ static struct folio *alloc_anon_folio(struct vm_fault *vmf)
 
 	/* Check if pte hasn't already been mapped above if vmf->upper_bound was set */
 	if (!pte) {
-		printk(KERN_WARNING "Mapped pte without upper bound\n");
 		pte = pte_offset_map(vmf->pmd, vmf->address & PMD_MASK);
 		if (!pte)
 			return ERR_PTR(-EAGAIN);
