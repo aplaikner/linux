@@ -4310,9 +4310,25 @@ static struct folio *alloc_anon_folio(struct vm_fault *vmf)
 	unsigned long orders;
 	struct folio *folio;
 	unsigned long addr;
-	pte_t *pte;
+	pte_t *pte = NULL;
 	gfp_t gfp;
 	int order;
+
+	// TODO: Fix not being called when order zero or one pages are allocatated
+	if (vmf->upper_bound) {
+		pte = pte_offset_map(vmf->pmd, vmf->address & PMD_MASK);
+		if (!pte) return ERR_PTR(-EAGAIN);
+		struct ptdesc* ptdesc = virt_to_ptdesc(pte);
+		if(ptdesc) {
+			struct folio* pagetable_folio = ptdesc_folio(ptdesc);
+			if(!folio_test_set_dirty(pagetable_folio)) {
+				printk(KERN_WARNING "Dirty bit was not set already and has been set successfully!\n");
+			} else {
+				printk(KERN_WARNING "Dirty bit set in pagetable before us setting it!\n");
+			}
+		}
+	}
+
 
 	/*
 	 * If uffd is active for the vma we need per-page fault fidelity to
@@ -4330,13 +4346,19 @@ static struct folio *alloc_anon_folio(struct vm_fault *vmf)
 					  BIT(PMD_ORDER) - 1);
 	orders = thp_vma_suitable_orders(vma, vmf->address, orders, vmf->upper_bound);
 
-	if (!orders)
+	if (!orders) {
+		/* pte might have been already mapped if vmf->upper_bound was set */
+		if (pte) pte_unmap(pte); 
 		goto fallback;
+	}
 
-	pte = pte_offset_map(vmf->pmd, vmf->address & PMD_MASK);
-	if (!pte)
-		return ERR_PTR(-EAGAIN);
-	
+	/* Check if pte hasn't already been mapped above if vmf->upper_bound was set */
+	if (!pte) {
+		printk(KERN_WARNING "Mapped pte without upper bound\n");
+		pte = pte_offset_map(vmf->pmd, vmf->address & PMD_MASK);
+		if (!pte)
+			return ERR_PTR(-EAGAIN);
+	}	
 
 	/*
 	 * Find the highest order where the aligned range is completely
@@ -4349,18 +4371,6 @@ static struct folio *alloc_anon_folio(struct vm_fault *vmf)
 		if (pte_range_none(pte + pte_index(addr), 1 << order))
 			break;
 		order = next_order(&orders, order);
-	}
-
-	if (vmf->upper_bound) {
-		struct ptdesc* ptdesc = virt_to_ptdesc(pte);
-		if(ptdesc) {
-			struct folio* pagetable_folio = ptdesc_folio(ptdesc);
-			if(!folio_test_set_dirty(pagetable_folio)) {
-				printk(KERN_WARNING "Dirty bit was not set already and has been set successfully!\n");
-			} else {
-				printk(KERN_WARNING "Dirty bit set in pagetable before us setting it!\n");
-			}
-		}
 	}
 
 	pte_unmap(pte);
