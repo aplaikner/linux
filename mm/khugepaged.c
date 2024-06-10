@@ -351,11 +351,8 @@ static int calc_max_ptes_none(pte_t *pte) {
 	if(ptdesc) {
 		struct folio* pagetable_folio = ptdesc_folio(ptdesc);
 		if (folio_test_dirty(pagetable_folio)) {
-			printk(KERN_WARNING "Khugepaged: Dirty bit set in pagetable\n");
 			return 0;
-		} else {
-			printk(KERN_WARNING "Khugepaged: Dirty bit was not set!\n");
-		}
+		} 
 	}
 	return khugepaged_max_ptes_none;
 }
