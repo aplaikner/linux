@@ -167,7 +167,6 @@ static inline bool thp_vma_suitable_order(struct vm_area_struct *vma,
 		return false;
 
 	if(upper_bound != NULL && (haddr < addr || haddr + hpage_size > *upper_bound)){
-		printk(KERN_WARNING "Order:%d not admissible!\n", order);
 		return false;
 	}
 
