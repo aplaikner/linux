@@ -1064,8 +1064,9 @@ vm_fault_t do_huge_pmd_anonymous_page(struct vm_fault *vmf)
 
 	if (!thp_vma_suitable_order(vma, vmf->address, PMD_ORDER, vmf->upper_bound))
 		return VM_FAULT_FALLBACK;
-	if (unlikely(anon_vma_prepare(vma)))
-		return VM_FAULT_OOM;
+	ret = vmf_anon_prepare(vmf);
+	if (ret)
+		return ret;
 
 	if (!(vmf->flags & FAULT_FLAG_WRITE) &&
 			!mm_forbids_zeropage(vma->vm_mm) &&
