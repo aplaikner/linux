@@ -468,6 +468,7 @@ int btrfs_read_qgroup_config(struct btrfs_fs_info *fs_info)
 		}
 		if (!qgroup) {
 			struct btrfs_qgroup *prealloc;
+			struct btrfs_root *tree_root = fs_info->tree_root;
 
 			prealloc = kzalloc(sizeof(*prealloc), GFP_KERNEL);
 			if (!prealloc) {
@@ -475,6 +476,25 @@ int btrfs_read_qgroup_config(struct btrfs_fs_info *fs_info)
 				goto out;
 			}
 			qgroup = add_qgroup_rb(fs_info, prealloc, found_key.offset);
+			/*
+			 * If a qgroup exists for a subvolume ID, it is possible
+			 * that subvolume has been deleted, in which case
+			 * re-using that ID would lead to incorrect accounting.
+			 *
+			 * Ensure that we skip any such subvol ids.
+			 *
+			 * We don't need to lock because this is only called
+			 * during mount before we start doing things like creating
+			 * subvolumes.
+			 */
+			if (is_fstree(qgroup->qgroupid) &&
+			    qgroup->qgroupid > tree_root->free_objectid)
+				/*
+				 * Don't need to check against BTRFS_LAST_FREE_OBJECTID,
+				 * as it will get checked on the next call to
+				 * btrfs_get_free_objectid.
+				 */
+				tree_root->free_objectid = qgroup->qgroupid + 1;
 		}
 		ret = btrfs_sysfs_add_one_qgroup(fs_info, qgroup);
 		if (ret < 0)
@@ -1331,7 +1351,7 @@ static int flush_reservations(struct btrfs_fs_info *fs_info)
 
 int btrfs_quota_disable(struct btrfs_fs_info *fs_info)
 {
-	struct btrfs_root *quota_root;
+	struct btrfs_root *quota_root = NULL;
 	struct btrfs_trans_handle *trans = NULL;
 	int ret = 0;
 
@@ -1429,9 +1449,9 @@ int btrfs_quota_disable(struct btrfs_fs_info *fs_info)
 	btrfs_free_tree_block(trans, btrfs_root_id(quota_root),
 			      quota_root->node, 0, 1);
 
-	btrfs_put_root(quota_root);
 
 out:
+	btrfs_put_root(quota_root);
 	mutex_unlock(&fs_info->qgroup_ioctl_lock);
 	if (ret && trans)
 		btrfs_end_transaction(trans);
@@ -3042,8 +3062,6 @@ int btrfs_qgroup_check_inherit(struct btrfs_fs_info *fs_info,
 			       struct btrfs_qgroup_inherit *inherit,
 			       size_t size)
 {
-	if (!btrfs_qgroup_enabled(fs_info))
-		return 0;
 	if (inherit->flags & ~BTRFS_QGROUP_INHERIT_FLAGS_SUPP)
 		return -EOPNOTSUPP;
 	if (size < sizeof(*inherit) || size > PAGE_SIZE)
@@ -3063,6 +3081,14 @@ int btrfs_qgroup_check_inherit(struct btrfs_fs_info *fs_info,
 
 	if (size != struct_size(inherit, qgroups, inherit->num_qgroups))
 		return -EINVAL;
+
+	/*
+	 * Skip the inherit source qgroups check if qgroup is not enabled.
+	 * Qgroup can still be later enabled causing problems, but in that case
+	 * btrfs_qgroup_inherit() would just ignore those invalid ones.
+	 */
+	if (!btrfs_qgroup_enabled(fs_info))
+		return 0;
 
 	/*
 	 * Now check all the remaining qgroups, they should all:
@@ -3820,14 +3846,14 @@ qgroup_rescan_init(struct btrfs_fs_info *fs_info, u64 progress_objectid,
 		/* we're resuming qgroup rescan at mount time */
 		if (!(fs_info->qgroup_flags &
 		      BTRFS_QGROUP_STATUS_FLAG_RESCAN)) {
-			btrfs_warn(fs_info,
+			btrfs_debug(fs_info,
 			"qgroup rescan init failed, qgroup rescan is not queued");
 			ret = -EINVAL;
 		} else if (!(fs_info->qgroup_flags &
 			     BTRFS_QGROUP_STATUS_FLAG_ON)) {
-			btrfs_warn(fs_info,
+			btrfs_debug(fs_info,
 			"qgroup rescan init failed, qgroup is not enabled");
-			ret = -EINVAL;
+			ret = -ENOTCONN;
 		}
 
 		if (ret)
@@ -3838,14 +3864,12 @@ qgroup_rescan_init(struct btrfs_fs_info *fs_info, u64 progress_objectid,
 
 	if (init_flags) {
 		if (fs_info->qgroup_flags & BTRFS_QGROUP_STATUS_FLAG_RESCAN) {
-			btrfs_warn(fs_info,
-				   "qgroup rescan is already in progress");
 			ret = -EINPROGRESS;
 		} else if (!(fs_info->qgroup_flags &
 			     BTRFS_QGROUP_STATUS_FLAG_ON)) {
-			btrfs_warn(fs_info,
+			btrfs_debug(fs_info,
 			"qgroup rescan init failed, qgroup is not enabled");
-			ret = -EINVAL;
+			ret = -ENOTCONN;
 		} else if (btrfs_qgroup_mode(fs_info) == BTRFS_QGROUP_MODE_DISABLED) {
 			/* Quota disable is in progress */
 			ret = -EBUSY;

@@ -86,15 +86,15 @@ struct ftrace_hash;
 
 #if defined(CONFIG_FUNCTION_TRACER) && defined(CONFIG_MODULES) && \
 	defined(CONFIG_DYNAMIC_FTRACE)
-const char *
+int
 ftrace_mod_address_lookup(unsigned long addr, unsigned long *size,
 		   unsigned long *off, char **modname, char *sym);
 #else
-static inline const char *
+static inline int
 ftrace_mod_address_lookup(unsigned long addr, unsigned long *size,
 		   unsigned long *off, char **modname, char *sym)
 {
-	return NULL;
+	return 0;
 }
 #endif
 
@@ -819,7 +819,8 @@ static inline int ftrace_init_nop(struct module *mod, struct dyn_ftrace *rec)
 extern int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr);
 
 #if defined(CONFIG_DYNAMIC_FTRACE_WITH_REGS) || \
-	defined(CONFIG_DYNAMIC_FTRACE_WITH_CALL_OPS)
+	defined(CONFIG_DYNAMIC_FTRACE_WITH_CALL_OPS) || \
+	defined(CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS)
 /**
  * ftrace_modify_call - convert from one addr to another (no nop)
  * @rec: the call site record (e.g. mcount/fentry)
