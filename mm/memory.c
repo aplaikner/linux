@@ -5508,12 +5508,8 @@ retry_pud:
 		goto retry_pud;
 
 	if (pmd_none(*vmf.pmd) &&
-<<<<<<< HEAD
-	    thp_vma_allowable_order(vma, vm_flags, false, true, true, PMD_ORDER)){
-=======
 	    thp_vma_allowable_order(vma, vm_flags,
 				TVA_IN_PF | TVA_ENFORCE_SYSFS, PMD_ORDER)) {
->>>>>>> master
 		ret = create_huge_pmd(&vmf);
 		if (!(ret & VM_FAULT_FALLBACK)) 
 			return ret;
